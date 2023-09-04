@@ -1,115 +1,76 @@
-import {useEffect, useState} from 'react';
-import {View, Text, Pressable} from 'react-native';
+import {View, Text, Image} from 'react-native';
 
 import {
-  withAuthenticator,
-  useAuthenticator,
   Authenticator,
+  ThemeProvider,
+  useTheme,
 } from '@aws-amplify/ui-react-native';
-import {Auth, API, graphqlOperation} from 'aws-amplify';
-import {getUser} from './src/graphql/queries';
-import {createUser} from './src/graphql/mutations';
+import {Amplify} from 'aws-amplify';
+import awsmobile from './src/aws-exports';
 
-import {RAPID_API_KEY} from '@env';
+import {Header} from './components';
+import {icons} from './constants';
 
-const userSelector = (context: any) => [context.user];
+import styles from './App.styles';
+import Search from './components/search';
+import Account from './components/account';
 
-const SignOutButton = () => {
-  const {user, signOut, route} = useAuthenticator(userSelector);
-  console.log(route);
-  return route === 'authenticated' || route === 'signIn' ? (
-    <Pressable onPress={signOut}>
-      <Text>Hello, {user.username}! Click here to sign out!</Text>
-    </Pressable>
-  ) : (
-    <Authenticator />
-  );
-};
+Amplify.configure(awsmobile);
 
-const axios = require('axios');
-
-const App = () => {
-  const [job, setJob] = useState<string>();
-  // run when app mounted
-  useEffect(() => {
-    const fetchUser = async () => {
-      // get auth user
-      const userInfo = await Auth.currentAuthenticatedUser({bypassCache: true});
-      // console.log(userInfo);
-
-      if (userInfo) {
-        const userData = await API.graphql(
-          graphqlOperation(getUser, {id: userInfo.attributes.sub}),
-        );
-
-        const user = userData.data.getUser;
-
-        if (user) {
-          console.log('user is already registered in database');
-
-          const endpoint = 'search';
-
-          // https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch
-          const options = {
-            method: 'GET',
-            url: `https://jsearch.p.rapidapi.com/${endpoint}`,
-            params: {
-              query: `New grad software developer ${user.country}`,
-              page: '1',
-              num_pages: '1',
-              date_posted: user.datePosted,
-              remote_jobs_only: user.remoteJobsOnly,
-              employment_types: user.employmentTypes,
-              job_requirements: user.experience,
-            },
-            headers: {
-              'X-RapidAPI-Key': RAPID_API_KEY,
-              'X-RapidAPI-Host': 'jsearch.p.rapidapi.com',
-            },
-          };
-
-          try {
-            const response = await axios.request(options);
-            console.log(response.data.data[0]);
-
-            setJob(
-              `${response.data.data[0].employer_name}: ${response.data.data[0].job_title}`,
-            );
-          } catch (error) {
-            console.error(error);
-          }
-
-          return;
-        }
-
-        const newUser = {
-          id: userInfo.attributes.sub,
-          name: userInfo.attributes.name,
-          datePosted: 'today',
-          remoteJobsOnly: true,
-          employmentType: 'FULLTIME',
-          experience: 'under_3_years_experience',
-          country: 'canada',
-        };
-
-        await API.graphql(
-          graphqlOperation(createUser, {
-            input: newUser,
-          }),
-        );
-      }
-    };
-
-    fetchUser();
-  }, []);
-
+const Logo = () => {
   return (
-    <View>
-      <Text>Hello World</Text>
-      <Text>Test Job: {job}</Text>
-      <SignOutButton />
+    <View style={styles.logoContainer}>
+      <Image source={icons.logo} style={styles.logo} />
     </View>
   );
 };
 
-export default withAuthenticator(App);
+const theme = {
+  tokens: {
+    colors: {
+      brand: {
+        primary: {
+          10: '{colors.teal.10}',
+          20: '{colors.teal.20}',
+          40: '{colors.teal.40}',
+          60: '{colors.teal.60}',
+          80: '{colors.teal.80}',
+          90: '{colors.teal.90}',
+          100: '{colors.teal.100}',
+        },
+      },
+    },
+  },
+};
+
+const App = () => {
+  const {
+    tokens: {colors},
+  } = useTheme();
+
+  // TODO: Custom Sign In/Up Screems
+
+  return (
+    <ThemeProvider theme={theme}>
+      <Authenticator.Provider>
+        <Authenticator
+          Container={props => (
+            <Authenticator.Container
+              {...props}
+              style={{backgroundColor: colors.teal[20]}}
+            />
+          )}
+          Header={Logo}>
+          <View>
+            <Header />
+            <Text>Welcome CarlZ</Text>
+            <Search />
+            <Account />
+          </View>
+        </Authenticator>
+      </Authenticator.Provider>
+    </ThemeProvider>
+  );
+};
+
+export default App;
